@@ -9,16 +9,11 @@
         body { background: #050505; color: white; font-family: sans-serif; }
         .art-card { background: #0c0c0c; border: 1px solid #1a1a1a; padding: 25px; border-radius: 24px; transition: 0.3s; }
         .art-card:hover { border-color: #ec4899; }
-        
-        /* Chat UI - Bottom Left */
         #chat-ui { position: fixed; bottom: 80px; left: 20px; width: 320px; background: #111; border: 1px solid #333; border-radius: 20px; display: none; flex-direction: column; z-index: 100; box-shadow: 0 10px 50px rgba(0,0,0,0.8); }
         #messages { height: 350px; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
         .melly { align-self: flex-start; background: #222; padding: 8px 12px; border-radius: 15px 15px 15px 4px; border: 1px solid #333; }
         .client { align-self: flex-end; background: #ec4899; padding: 8px 12px; border-radius: 15px 15px 4px 15px; }
-        
-        /* Floating Buttons */
         .float-btn { position: fixed; bottom: 20px; font-weight: 900; font-size: 11px; padding: 12px 20px; border-radius: 50px; text-transform: uppercase; transition: 0.3s; z-index: 90; }
-        .float-btn:hover { transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -28,26 +23,19 @@
         <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest">Discord</a>
     </nav>
 
-    <div class="flex gap-10 justify-center mb-10 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-        <span onclick="filter('PixelArt')" class="cursor-pointer hover:text-pink-500">Pixel Art</span>
-        <span onclick="filter('DigitalArt')" class="cursor-pointer hover:text-pink-500">Digital Art</span>
-        <span onclick="filter('Renders')" class="cursor-pointer hover:text-pink-500">Renders</span>
-        <span onclick="filter('Skins')" class="cursor-pointer hover:text-pink-500">Skins</span>
-    </div>
+    <div id="priceGrid" class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-8 pb-32"></div>
 
-    <main id="priceGrid" class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-8 pb-32"></main>
-
-    <button onclick="document.getElementById('chat-ui').style.display='flex'" class="float-btn left-5 bg-pink-500">💬 Chat with Mimi</button>
-    <a id="paypalLink" href="#" target="_blank" class="float-btn right-5 bg-[#0070ba]">💳 Pay via PayPal</a>
+    <button onclick="document.getElementById('chat-ui').style.display='flex'" class="float-btn left-5 bg-pink-500">💬 Chat</button>
+    <a id="paypalLink" href="#" target="_blank" class="float-btn right-5 bg-[#0070ba]">💳 PayPal</a>
 
     <div id="chat-ui">
-        <div class="p-4 border-b border-zinc-800 flex justify-between items-center text-[10px] font-black tracking-widest bg-zinc-900 rounded-t-20">
+        <div class="p-4 border-b border-zinc-800 flex justify-between items-center text-[10px] font-black bg-zinc-900 rounded-t-20">
             <span>LIVE CHAT</span>
-            <button onclick="this.parentElement.parentElement.style.display='none'" class="text-zinc-500">✕</button>
+            <button onclick="this.parentElement.parentElement.style.display='none'">✕</button>
         </div>
         <div id="messages"></div>
         <div class="p-3 border-t border-zinc-800 flex gap-2">
-            <input type="text" id="chatInput" placeholder="Ask a question..." class="bg-black text-sm p-2 flex-1 outline-none border border-zinc-800 rounded-lg">
+            <input type="text" id="chatInput" placeholder="Press Enter to send..." class="bg-black text-sm p-2 flex-1 outline-none border border-zinc-800 rounded-lg">
             <button onclick="sendMsg()" class="bg-pink-500 text-xs px-4 py-2 font-bold rounded-lg">SEND</button>
         </div>
     </div>
@@ -68,13 +56,8 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-
-        // PERSISTENT CHAT: This makes sure messages stay saved for the user
-        let chatId = localStorage.getItem('mimi_user_id');
-        if(!chatId) {
-            chatId = 'client_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('mimi_user_id', chatId);
-        }
+        let chatId = localStorage.getItem('mimi_user_id') || 'client_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('mimi_user_id', chatId);
 
         window.sendMsg = () => {
             const input = document.getElementById('chatInput');
@@ -83,38 +66,36 @@
             input.value = '';
         };
 
+        // NEW: LISTEN FOR ENTER KEY
+        document.getElementById('chatInput').addEventListener("keypress", (e) => {
+            if (e.key === "Enter") { sendMsg(); }
+        });
+
         onValue(ref(db, 'chats/' + chatId), (snap) => {
             const box = document.getElementById('messages');
             box.innerHTML = '';
             snap.forEach(m => {
-                const data = m.val();
-                box.innerHTML += `<div class="${data.sender}">${data.text}</div>`;
+                const d = m.val();
+                box.innerHTML += `<div class="${d.sender}">${d.text}</div>`;
             });
             box.scrollTop = box.scrollHeight;
         });
 
-        // LOAD STORE DATA
         onValue(ref(db, 'mimiConfig'), (snap) => {
             const d = snap.val(); if(!d) return;
             document.getElementById('artistName').innerText = d.artistName || 'MIMI';
             document.getElementById('discordLink').href = d.discord || '#';
             document.getElementById('paypalLink').href = d.paypal ? `https://paypal.me/${d.paypal}` : '#';
-            
-            window.filter = (cat) => {
-                const grid = document.getElementById('priceGrid');
-                grid.innerHTML = '';
-                if(d.styles) d.styles.split(';;').forEach(item => {
-                    const [c, n, p] = item.split('|');
-                    if(c === cat) {
-                        grid.innerHTML += `<div class="art-card">
-                            <h3 class="text-xl font-bold uppercase italic">${n}</h3>
-                            <p class="text-pink-500 font-bold mt-4">€${p}</p>
-                            <button onclick="document.getElementById('chat-ui').style.display='flex'; document.getElementById('chatInput').value='I want to talk about ${n}! '" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss</button>
-                        </div>`;
-                    }
-                });
-            };
-            filter('PixelArt'); // Default View
+            const grid = document.getElementById('priceGrid');
+            grid.innerHTML = '';
+            if(d.styles) d.styles.split(';;').forEach(item => {
+                const [c, n, p] = item.split('|');
+                grid.innerHTML += `<div class="art-card">
+                    <h3 class="text-xl font-bold uppercase italic">${n}</h3>
+                    <p class="text-pink-500 font-bold mt-4">€${p}</p>
+                    <button onclick="document.getElementById('chat-ui').style.display='flex'; document.getElementById('chatInput').value='I want to talk about ${n}! '" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition text-center">Discuss</button>
+                </div>`;
+            });
         });
     </script>
 </body>
