@@ -20,7 +20,6 @@
     </style>
 </head>
 <body>
-
     <div id="sidebar">
         <div class="p-6 border-b border-zinc-800"><h1 class="text-xl font-black text-pink-500 italic">MIMI</h1></div>
         <div class="flex-1 pt-4">
@@ -30,19 +29,14 @@
             </div>
         </div>
         <div class="p-4 border-t border-zinc-800">
-            <button id="authBtn" onclick="handleAuth()" class="w-full py-2 bg-zinc-900 rounded-lg text-[10px] font-black uppercase">Checking Auth...</button>
+            <button id="authBtn" onclick="handleAuth()" class="w-full py-2 bg-zinc-900 rounded-lg text-[10px] font-black uppercase">Loading...</button>
         </div>
     </div>
 
     <div id="main-content">
         <div id="gallery-page" class="p-8 max-w-6xl mx-auto">
-            <div class="flex justify-between items-center mb-10">
-                <h2 class="text-2xl font-black uppercase">Gallery</h2>
-                <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs">Discord</a>
-            </div>
             <div id="priceGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
-
         <div id="chat-page" class="hidden h-full flex flex-col max-w-4xl mx-auto bg-[#080808]">
             <div id="messages"></div>
             <div class="p-4 border-t border-zinc-800 flex gap-2">
@@ -71,7 +65,6 @@
         const db = getDatabase(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-
         let currentUser = null;
 
         onAuthStateChanged(auth, (user) => {
@@ -92,9 +85,7 @@
         window.handleAuth = () => {
             if(currentUser) { signOut(auth); }
             else { 
-                setPersistence(auth, browserLocalPersistence).then(() => {
-                    return signInWithPopup(auth, provider);
-                });
+                setPersistence(auth, browserLocalPersistence).then(() => signInWithPopup(auth, provider));
             }
         };
 
@@ -118,26 +109,18 @@
             onValue(ref(db, 'chats/' + uid), (snap) => {
                 const box = document.getElementById('messages');
                 box.innerHTML = '';
-                snap.forEach(m => {
-                    const d = m.val();
-                    box.innerHTML += `<div class="${d.sender}">${d.text}</div>`;
-                });
+                snap.forEach(m => { box.innerHTML += `<div class="${m.val().sender}">${m.val().text}</div>`; });
                 box.scrollTop = box.scrollHeight;
             });
         }
 
         onValue(ref(db, 'mimiConfig'), (snap) => {
-            const d = snap.val(); if(!d) return;
-            document.getElementById('discordLink').href = d.discord || '#';
+            const d = snap.val(); if(!d || !d.styles) return;
             const grid = document.getElementById('priceGrid');
             grid.innerHTML = '';
-            if(d.styles) d.styles.split(';;').forEach(item => {
+            d.styles.split(';;').forEach(item => {
                 const [c, n, p] = item.split('|');
-                grid.innerHTML += `<div class="art-card">
-                    <h3 class="text-xl font-bold uppercase italic">${n}</h3>
-                    <p class="text-pink-500 font-bold mt-4">€${p}</p>
-                    <button onclick="currentUser ? showPage('chat') : handleAuth()" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss</button>
-                </div>`;
+                grid.innerHTML += `<div class="art-card"><h3 class="text-xl font-bold uppercase">${n}</h3><p class="text-pink-500 font-bold mt-4">€${p}</p><button onclick="currentUser ? showPage('chat') : handleAuth()" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss</button></div>`;
             });
         });
     </script>
