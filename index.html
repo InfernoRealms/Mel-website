@@ -7,54 +7,46 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #050505; color: white; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 280px; background: #0c0c0c; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; transition: 0.3s; }
-        #main-content { flex: 1; overflow-y: auto; padding-bottom: 50px; }
+        #sidebar { width: 280px; background: #0c0c0c; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; }
+        #main-content { flex: 1; overflow-y: auto; }
         .art-card { background: #0c0c0c; border: 1px solid #1a1a1a; padding: 25px; border-radius: 24px; transition: 0.3s; }
         .art-card:hover { border-color: #ec4899; }
-        
-        /* Chat Area */
-        #chat-container { flex: 1; display: flex; flex-direction: column; height: 100%; display: none; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
         .melly { align-self: flex-start; background: #222; padding: 8px 12px; border-radius: 12px; border: 1px solid #333; }
         .client { align-self: flex-end; background: #ec4899; padding: 8px 12px; border-radius: 12px; }
-        
-        .nav-btn { width: 100%; text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #555; transition: 0.2s; }
-        .nav-btn:hover { color: #ec4899; background: #111; }
+        .nav-btn { width: 100%; text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #555; }
         .nav-btn.active { color: white; border-left: 3px solid #ec4899; background: #111; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <div class="p-6 border-b border-zinc-800">
-            <h1 class="text-xl font-black text-pink-500 italic">MIMI</h1>
-        </div>
-        <div class="flex-1 overflow-y-auto pt-4">
+        <div class="p-6 border-b border-zinc-800"><h1 class="text-xl font-black text-pink-500 italic">MIMI</h1></div>
+        <div class="flex-1 pt-4">
             <button onclick="showPage('gallery')" id="btn-gallery" class="nav-btn active">Gallery</button>
             <div id="user-chat-menu" class="hidden">
-                <p class="px-5 py-2 text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-4">Your Conversations</p>
                 <button onclick="showPage('chat')" id="btn-chat" class="nav-btn">Chat with Mimi</button>
             </div>
         </div>
         <div class="p-4 border-t border-zinc-800">
-            <button id="authBtn" onclick="handleAuth()" class="w-full py-2 bg-zinc-900 rounded-lg text-[10px] font-black uppercase tracking-tighter">Login with Google</button>
+            <button id="authBtn" onclick="handleAuth()" class="w-full py-2 bg-zinc-900 rounded-lg text-[10px] font-black uppercase">Checking Auth...</button>
         </div>
     </div>
 
     <div id="main-content">
         <div id="gallery-page" class="p-8 max-w-6xl mx-auto">
             <div class="flex justify-between items-center mb-10">
-                <h2 class="text-2xl font-black uppercase">Available Styles</h2>
-                <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs uppercase">Discord</a>
+                <h2 class="text-2xl font-black uppercase">Gallery</h2>
+                <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs">Discord</a>
             </div>
             <div id="priceGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
 
-        <div id="chat-page" class="hidden h-full flex flex-col max-w-4xl mx-auto border-x border-zinc-900 bg-[#080808]">
-            <div class="p-6 border-b border-zinc-800 font-black text-xs uppercase tracking-widest">Discussion with Mimi</div>
+        <div id="chat-page" class="hidden h-full flex flex-col max-w-4xl mx-auto bg-[#080808]">
             <div id="messages"></div>
             <div class="p-4 border-t border-zinc-800 flex gap-2">
-                <input type="text" id="chatInput" placeholder="Write a message..." class="flex-1 bg-black border border-zinc-800 p-3 rounded-xl outline-none text-sm">
+                <input type="text" id="chatInput" placeholder="Message..." class="flex-1 bg-black border border-zinc-800 p-3 rounded-xl outline-none">
                 <button onclick="sendMsg()" class="bg-pink-500 px-6 py-2 rounded-xl font-bold">SEND</button>
             </div>
         </div>
@@ -63,7 +55,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAIw732tQkUIeaYXAUAg_80kSH63BytVtE",
@@ -82,25 +74,29 @@
 
         let currentUser = null;
 
-        window.handleAuth = () => {
-            if(currentUser) { signOut(auth); }
-            else { signInWithPopup(auth, provider); }
-        };
-
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             const menu = document.getElementById('user-chat-menu');
             const authBtn = document.getElementById('authBtn');
             if(user) {
                 menu.classList.remove('hidden');
-                authBtn.innerText = "Logout (" + user.displayName.split(' ')[0] + ")";
+                authBtn.innerText = "LOGOUT (" + user.displayName.split(' ')[0] + ")";
                 loadChat(user.uid);
             } else {
                 menu.classList.add('hidden');
-                authBtn.innerText = "Login to Chat";
+                authBtn.innerText = "LOGIN WITH GOOGLE";
                 showPage('gallery');
             }
         });
+
+        window.handleAuth = () => {
+            if(currentUser) { signOut(auth); }
+            else { 
+                setPersistence(auth, browserLocalPersistence).then(() => {
+                    return signInWithPopup(auth, provider);
+                });
+            }
+        };
 
         window.showPage = (p) => {
             document.getElementById('gallery-page').classList.toggle('hidden', p !== 'gallery');
@@ -140,7 +136,7 @@
                 grid.innerHTML += `<div class="art-card">
                     <h3 class="text-xl font-bold uppercase italic">${n}</h3>
                     <p class="text-pink-500 font-bold mt-4">€${p}</p>
-                    <button onclick="${currentUser ? "showPage('chat')" : "handleAuth()"}" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss Project</button>
+                    <button onclick="currentUser ? showPage('chat') : handleAuth()" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss</button>
                 </div>`;
             });
         });
