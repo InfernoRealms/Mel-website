@@ -12,8 +12,9 @@
         .art-card { background: #0c0c0c; border: 1px solid #1a1a1a; padding: 25px; border-radius: 24px; transition: 0.3s; }
         .art-card:hover { border-color: #ec4899; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
-        .melly { align-self: flex-start; background: #222; padding: 8px 12px; border-radius: 12px; border: 1px solid #333; }
-        .client { align-self: flex-end; background: #ec4899; padding: 8px 12px; border-radius: 12px; }
+        .melly { align-self: flex-start; background: #222; padding: 8px 12px; border-radius: 12px; border: 1px solid #333; max-width: 80%; }
+        .client { align-self: flex-end; background: #ec4899; padding: 8px 12px; border-radius: 12px; max-width: 80%; }
+        .chat-img { max-width: 100%; border-radius: 8px; margin-top: 5px; cursor: pointer; }
         .nav-btn { width: 100%; text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #555; }
         .nav-btn.active { color: white; border-left: 3px solid #ec4899; background: #111; }
         .hidden { display: none !important; }
@@ -22,10 +23,14 @@
 <body>
     <div id="sidebar">
         <div class="p-6 border-b border-zinc-800"><h1 class="text-xl font-black text-pink-500 italic">MIMI</h1></div>
-        <div class="flex-1 pt-4">
+        <div class="flex-1 pt-4 overflow-y-auto">
             <button onclick="showPage('gallery')" id="btn-gallery" class="nav-btn active">Gallery</button>
             <div id="user-chat-menu" class="hidden">
-                <button onclick="showPage('chat')" id="btn-chat" class="nav-btn">Chat with Mimi</button>
+                <div class="px-5 py-3 flex justify-between items-center">
+                    <span class="text-[9px] text-zinc-500 font-bold uppercase">Chats</span>
+                    <button onclick="createNewChat()" class="text-pink-500 text-[10px] font-bold">+ NEW</button>
+                </div>
+                <div id="chat-list"></div>
             </div>
         </div>
         <div class="p-4 border-t border-zinc-800">
@@ -39,16 +44,19 @@
         </div>
         <div id="chat-page" class="hidden h-full flex flex-col max-w-4xl mx-auto bg-[#080808]">
             <div id="messages"></div>
-            <div class="p-4 border-t border-zinc-800 flex gap-2">
-                <input type="text" id="chatInput" placeholder="Message..." class="flex-1 bg-black border border-zinc-800 p-3 rounded-xl outline-none">
-                <button onclick="sendMsg()" class="bg-pink-500 px-6 py-2 rounded-xl font-bold">SEND</button>
+            <div class="p-4 border-t border-zinc-800 flex flex-col gap-2">
+                <div class="flex gap-2">
+                    <input type="text" id="chatInput" placeholder="Message or Image URL..." class="flex-1 bg-black border border-zinc-800 p-3 rounded-xl outline-none">
+                    <button onclick="sendMsg()" class="bg-pink-500 px-6 py-2 rounded-xl font-bold uppercase text-xs">Send</button>
+                </div>
+                <p class="text-[9px] text-zinc-600">Paste an image link (ending in .jpg, .png, .gif) to send a photo.</p>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, push, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -65,7 +73,9 @@
         const db = getDatabase(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        
         let currentUser = null;
+        let activeChatId = null;
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
@@ -74,7 +84,7 @@
             if(user) {
                 menu.classList.remove('hidden');
                 authBtn.innerText = "LOGOUT (" + user.displayName.split(' ')[0] + ")";
-                loadChat(user.uid);
+                syncChatList();
             } else {
                 menu.classList.add('hidden');
                 authBtn.innerText = "LOGIN WITH GOOGLE";
@@ -83,33 +93,75 @@
         });
 
         window.handleAuth = () => {
-            if(currentUser) { signOut(auth); }
-            else { 
-                setPersistence(auth, browserLocalPersistence).then(() => signInWithPopup(auth, provider));
-            }
+            if(currentUser) signOut(auth);
+            else setPersistence(auth, browserLocalPersistence).then(() => signInWithPopup(auth, provider));
         };
 
-        window.showPage = (p) => {
+        window.showPage = (p, chatId = null) => {
             document.getElementById('gallery-page').classList.toggle('hidden', p !== 'gallery');
             document.getElementById('chat-page').classList.toggle('hidden', p !== 'chat');
             document.getElementById('btn-gallery').classList.toggle('active', p === 'gallery');
-            document.getElementById('btn-chat').classList.toggle('active', p === 'chat');
+            if(chatId) {
+                activeChatId = chatId;
+                loadChat(chatId);
+            }
         };
+
+        window.createNewChat = async () => {
+            if(!currentUser) return;
+            const safeEmail = currentUser.email.replace(/\./g, '_');
+            const snap = await get(ref(db, `userIndex/${safeEmail}`));
+            let count = (snap.val() || 0) + 1;
+            await set(ref(db, `userIndex/${safeEmail}`), count);
+            const newId = `${safeEmail}_chat_${count}`;
+            activeChatId = newId;
+            // Create initial message to make it show up
+            push(ref(db, 'chats/' + newId), { sender: 'client', text: 'Started a new chat!', type: 'text', name: currentUser.displayName });
+            syncChatList();
+            showPage('chat', newId);
+        };
+
+        function syncChatList() {
+            const safeEmail = currentUser.email.replace(/\./g, '_');
+            onValue(ref(db, 'chats'), (snap) => {
+                const list = document.getElementById('chat-list');
+                list.innerHTML = '';
+                snap.forEach(chat => {
+                    if(chat.key.startsWith(safeEmail)) {
+                        const b = document.createElement('button');
+                        b.className = `nav-btn ${activeChatId === chat.key ? 'active' : ''}`;
+                        b.innerText = chat.key.split('_').pop() === 'chat' ? 'Main Chat' : 'Chat #' + chat.key.split('_').pop();
+                        b.onclick = () => showPage('chat', chat.key);
+                        list.appendChild(b);
+                    }
+                });
+            });
+        }
 
         window.sendMsg = () => {
             const input = document.getElementById('chatInput');
-            if(!input.value || !currentUser) return;
-            push(ref(db, 'chats/' + currentUser.uid), { sender: 'client', text: input.value, name: currentUser.displayName });
+            if(!input.value || !currentUser || !activeChatId) return;
+            const isImg = /\.(jpg|jpeg|png|webp|avif|gif)$/.test(input.value.toLowerCase());
+            push(ref(db, 'chats/' + activeChatId), { 
+                sender: 'client', 
+                text: input.value, 
+                type: isImg ? 'image' : 'text',
+                name: currentUser.displayName 
+            });
             input.value = '';
         };
 
         document.getElementById('chatInput').addEventListener("keypress", (e) => { if(e.key === "Enter") sendMsg(); });
 
-        function loadChat(uid) {
-            onValue(ref(db, 'chats/' + uid), (snap) => {
+        function loadChat(chatId) {
+            onValue(ref(db, 'chats/' + chatId), (snap) => {
                 const box = document.getElementById('messages');
                 box.innerHTML = '';
-                snap.forEach(m => { box.innerHTML += `<div class="${m.val().sender}">${m.val().text}</div>`; });
+                snap.forEach(m => {
+                    const d = m.val();
+                    const content = d.type === 'image' ? `<img src="${d.text}" class="chat-img" onclick="window.open('${d.text}')">` : d.text;
+                    box.innerHTML += `<div class="${d.sender}">${content}</div>`;
+                });
                 box.scrollTop = box.scrollHeight;
             });
         }
@@ -120,7 +172,7 @@
             grid.innerHTML = '';
             d.styles.split(';;').forEach(item => {
                 const [c, n, p] = item.split('|');
-                grid.innerHTML += `<div class="art-card"><h3 class="text-xl font-bold uppercase">${n}</h3><p class="text-pink-500 font-bold mt-4">€${p}</p><button onclick="currentUser ? showPage('chat') : handleAuth()" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss</button></div>`;
+                grid.innerHTML += `<div class="art-card"><h3 class="text-xl font-bold uppercase">${n}</h3><p class="text-pink-500 font-bold mt-4">€${p}</p><button onclick="currentUser ? (activeChatId ? showPage('chat', activeChatId) : createNewChat()) : handleAuth()" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss</button></div>`;
             });
         });
     </script>
