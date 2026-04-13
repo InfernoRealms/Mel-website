@@ -20,7 +20,10 @@
 
     <nav class="p-8 flex justify-between items-center max-w-7xl mx-auto">
         <h1 id="artistName" class="text-3xl font-black italic uppercase text-pink-500">Mimi</h1>
-        <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest">Discord</a>
+        <div class="flex items-center gap-4">
+            <button id="loginBtn" onclick="userLogin()" class="text-[10px] font-bold uppercase text-zinc-400 hover:text-white">Login</button>
+            <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest">Discord</a>
+        </div>
     </nav>
 
     <div id="priceGrid" class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-8 pb-32"></div>
@@ -30,7 +33,7 @@
 
     <div id="chat-ui">
         <div class="p-4 border-b border-zinc-800 flex justify-between items-center text-[10px] font-black bg-zinc-900 rounded-t-20">
-            <span>LIVE CHAT</span>
+            <span id="chatHeader">LIVE CHAT</span>
             <button onclick="this.parentElement.parentElement.style.display='none'">✕</button>
         </div>
         <div id="messages"></div>
@@ -43,6 +46,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAIw732tQkUIeaYXAUAg_80kSH63BytVtE",
@@ -56,30 +60,51 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        let chatId = localStorage.getItem('mimi_user_id') || 'client_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('mimi_user_id', chatId);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        let chatId = localStorage.getItem('mimi_user_id') || 'guest_' + Math.floor(Math.random()*10000);
+        let userName = "Guest";
+
+        // Login Logic
+        window.userLogin = () => {
+            signInWithPopup(auth, provider).catch(err => console.log(err));
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                chatId = user.uid;
+                userName = user.displayName;
+                document.getElementById('loginBtn').innerText = "Logged in as " + user.displayName.split(' ')[0];
+                document.getElementById('chatHeader').innerText = "Chatting as " + user.displayName;
+                loadChat();
+            } else {
+                loadChat();
+            }
+        });
 
         window.sendMsg = () => {
             const input = document.getElementById('chatInput');
             if(!input.value) return;
-            push(ref(db, 'chats/' + chatId), { sender: 'client', text: input.value });
+            push(ref(db, 'chats/' + chatId), { sender: 'client', text: input.value, name: userName });
             input.value = '';
         };
 
-        // NEW: LISTEN FOR ENTER KEY
         document.getElementById('chatInput').addEventListener("keypress", (e) => {
             if (e.key === "Enter") { sendMsg(); }
         });
 
-        onValue(ref(db, 'chats/' + chatId), (snap) => {
-            const box = document.getElementById('messages');
-            box.innerHTML = '';
-            snap.forEach(m => {
-                const d = m.val();
-                box.innerHTML += `<div class="${d.sender}">${d.text}</div>`;
+        function loadChat() {
+            onValue(ref(db, 'chats/' + chatId), (snap) => {
+                const box = document.getElementById('messages');
+                box.innerHTML = '';
+                snap.forEach(m => {
+                    const d = m.val();
+                    box.innerHTML += `<div class="${d.sender}">${d.text}</div>`;
+                });
+                box.scrollTop = box.scrollHeight;
             });
-            box.scrollTop = box.scrollHeight;
-        });
+        }
 
         onValue(ref(db, 'mimiConfig'), (snap) => {
             const d = snap.val(); if(!d) return;
