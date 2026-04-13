@@ -6,47 +6,64 @@
     <title>Mimi | Art Portfolio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #050505; color: white; font-family: sans-serif; }
+        body { background: #050505; color: white; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 280px; background: #0c0c0c; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; transition: 0.3s; }
+        #main-content { flex: 1; overflow-y: auto; padding-bottom: 50px; }
         .art-card { background: #0c0c0c; border: 1px solid #1a1a1a; padding: 25px; border-radius: 24px; transition: 0.3s; }
         .art-card:hover { border-color: #ec4899; }
-        #chat-ui { position: fixed; bottom: 80px; left: 20px; width: 320px; background: #111; border: 1px solid #333; border-radius: 20px; display: none; flex-direction: column; z-index: 100; box-shadow: 0 10px 50px rgba(0,0,0,0.8); }
-        #messages { height: 350px; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
-        .melly { align-self: flex-start; background: #222; padding: 8px 12px; border-radius: 15px 15px 15px 4px; border: 1px solid #333; }
-        .client { align-self: flex-end; background: #ec4899; padding: 8px 12px; border-radius: 15px 15px 4px 15px; }
-        .float-btn { position: fixed; bottom: 20px; font-weight: 900; font-size: 11px; padding: 12px 20px; border-radius: 50px; text-transform: uppercase; transition: 0.3s; z-index: 90; }
+        
+        /* Chat Area */
+        #chat-container { flex: 1; display: flex; flex-direction: column; height: 100%; display: none; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+        .melly { align-self: flex-start; background: #222; padding: 8px 12px; border-radius: 12px; border: 1px solid #333; }
+        .client { align-self: flex-end; background: #ec4899; padding: 8px 12px; border-radius: 12px; }
+        
+        .nav-btn { width: 100%; text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #555; transition: 0.2s; }
+        .nav-btn:hover { color: #ec4899; background: #111; }
+        .nav-btn.active { color: white; border-left: 3px solid #ec4899; background: #111; }
     </style>
 </head>
 <body>
 
-    <nav class="p-8 flex justify-between items-center max-w-7xl mx-auto">
-        <h1 id="artistName" class="text-3xl font-black italic uppercase text-pink-500">Mimi</h1>
-        <div class="flex items-center gap-4">
-            <button id="loginBtn" onclick="userLogin()" class="text-[10px] font-bold uppercase text-zinc-400 hover:text-white">Login</button>
-            <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest">Discord</a>
+    <div id="sidebar">
+        <div class="p-6 border-b border-zinc-800">
+            <h1 class="text-xl font-black text-pink-500 italic">MIMI</h1>
         </div>
-    </nav>
-
-    <div id="priceGrid" class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-8 pb-32"></div>
-
-    <button onclick="document.getElementById('chat-ui').style.display='flex'" class="float-btn left-5 bg-pink-500">💬 Chat</button>
-    <a id="paypalLink" href="#" target="_blank" class="float-btn right-5 bg-[#0070ba]">💳 PayPal</a>
-
-    <div id="chat-ui">
-        <div class="p-4 border-b border-zinc-800 flex justify-between items-center text-[10px] font-black bg-zinc-900 rounded-t-20">
-            <span id="chatHeader">LIVE CHAT</span>
-            <button onclick="this.parentElement.parentElement.style.display='none'">✕</button>
+        <div class="flex-1 overflow-y-auto pt-4">
+            <button onclick="showPage('gallery')" id="btn-gallery" class="nav-btn active">Gallery</button>
+            <div id="user-chat-menu" class="hidden">
+                <p class="px-5 py-2 text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-4">Your Conversations</p>
+                <button onclick="showPage('chat')" id="btn-chat" class="nav-btn">Chat with Mimi</button>
+            </div>
         </div>
-        <div id="messages"></div>
-        <div class="p-3 border-t border-zinc-800 flex gap-2">
-            <input type="text" id="chatInput" placeholder="Press Enter to send..." class="bg-black text-sm p-2 flex-1 outline-none border border-zinc-800 rounded-lg">
-            <button onclick="sendMsg()" class="bg-pink-500 text-xs px-4 py-2 font-bold rounded-lg">SEND</button>
+        <div class="p-4 border-t border-zinc-800">
+            <button id="authBtn" onclick="handleAuth()" class="w-full py-2 bg-zinc-900 rounded-lg text-[10px] font-black uppercase tracking-tighter">Login with Google</button>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="gallery-page" class="p-8 max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-10">
+                <h2 class="text-2xl font-black uppercase">Available Styles</h2>
+                <a id="discordLink" href="#" target="_blank" class="bg-[#5865F2] px-6 py-2 rounded-full font-bold text-xs uppercase">Discord</a>
+            </div>
+            <div id="priceGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="chat-page" class="hidden h-full flex flex-col max-w-4xl mx-auto border-x border-zinc-900 bg-[#080808]">
+            <div class="p-6 border-b border-zinc-800 font-black text-xs uppercase tracking-widest">Discussion with Mimi</div>
+            <div id="messages"></div>
+            <div class="p-4 border-t border-zinc-800 flex gap-2">
+                <input type="text" id="chatInput" placeholder="Write a message..." class="flex-1 bg-black border border-zinc-800 p-3 rounded-xl outline-none text-sm">
+                <button onclick="sendMsg()" class="bg-pink-500 px-6 py-2 rounded-xl font-bold">SEND</button>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAIw732tQkUIeaYXAUAg_80kSH63BytVtE",
@@ -63,39 +80,46 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        let chatId = localStorage.getItem('mimi_user_id') || 'guest_' + Math.floor(Math.random()*10000);
-        let userName = "Guest";
+        let currentUser = null;
 
-        // Login Logic
-        window.userLogin = () => {
-            signInWithPopup(auth, provider).catch(err => console.log(err));
+        window.handleAuth = () => {
+            if(currentUser) { signOut(auth); }
+            else { signInWithPopup(auth, provider); }
         };
 
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                chatId = user.uid;
-                userName = user.displayName;
-                document.getElementById('loginBtn').innerText = "Logged in as " + user.displayName.split(' ')[0];
-                document.getElementById('chatHeader').innerText = "Chatting as " + user.displayName;
-                loadChat();
+            currentUser = user;
+            const menu = document.getElementById('user-chat-menu');
+            const authBtn = document.getElementById('authBtn');
+            if(user) {
+                menu.classList.remove('hidden');
+                authBtn.innerText = "Logout (" + user.displayName.split(' ')[0] + ")";
+                loadChat(user.uid);
             } else {
-                loadChat();
+                menu.classList.add('hidden');
+                authBtn.innerText = "Login to Chat";
+                showPage('gallery');
             }
         });
 
+        window.showPage = (p) => {
+            document.getElementById('gallery-page').classList.toggle('hidden', p !== 'gallery');
+            document.getElementById('chat-page').classList.toggle('hidden', p !== 'chat');
+            document.getElementById('btn-gallery').classList.toggle('active', p === 'gallery');
+            document.getElementById('btn-chat').classList.toggle('active', p === 'chat');
+        };
+
         window.sendMsg = () => {
             const input = document.getElementById('chatInput');
-            if(!input.value) return;
-            push(ref(db, 'chats/' + chatId), { sender: 'client', text: input.value, name: userName });
+            if(!input.value || !currentUser) return;
+            push(ref(db, 'chats/' + currentUser.uid), { sender: 'client', text: input.value, name: currentUser.displayName });
             input.value = '';
         };
 
-        document.getElementById('chatInput').addEventListener("keypress", (e) => {
-            if (e.key === "Enter") { sendMsg(); }
-        });
+        document.getElementById('chatInput').addEventListener("keypress", (e) => { if(e.key === "Enter") sendMsg(); });
 
-        function loadChat() {
-            onValue(ref(db, 'chats/' + chatId), (snap) => {
+        function loadChat(uid) {
+            onValue(ref(db, 'chats/' + uid), (snap) => {
                 const box = document.getElementById('messages');
                 box.innerHTML = '';
                 snap.forEach(m => {
@@ -108,9 +132,7 @@
 
         onValue(ref(db, 'mimiConfig'), (snap) => {
             const d = snap.val(); if(!d) return;
-            document.getElementById('artistName').innerText = d.artistName || 'MIMI';
             document.getElementById('discordLink').href = d.discord || '#';
-            document.getElementById('paypalLink').href = d.paypal ? `https://paypal.me/${d.paypal}` : '#';
             const grid = document.getElementById('priceGrid');
             grid.innerHTML = '';
             if(d.styles) d.styles.split(';;').forEach(item => {
@@ -118,7 +140,7 @@
                 grid.innerHTML += `<div class="art-card">
                     <h3 class="text-xl font-bold uppercase italic">${n}</h3>
                     <p class="text-pink-500 font-bold mt-4">€${p}</p>
-                    <button onclick="document.getElementById('chat-ui').style.display='flex'; document.getElementById('chatInput').value='I want to talk about ${n}! '" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition text-center">Discuss</button>
+                    <button onclick="${currentUser ? "showPage('chat')" : "handleAuth()"}" class="mt-6 w-full py-2 border border-zinc-800 rounded-lg text-[10px] font-bold uppercase hover:bg-white hover:text-black transition">Discuss Project</button>
                 </div>`;
             });
         });
